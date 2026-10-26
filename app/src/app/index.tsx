@@ -1,179 +1,116 @@
 /**
- * src/app/index.tsx  —  TELA DE TESTE DO BANCO (temporária)
+ * src/app/index.tsx  —  HOME do Lume
  * ---------------------------------------------------------------
- * Substitui a Home de demonstração do template. Serve para provar
- * que o SQLite está funcionando no celular:
- *   - cria o usuário na primeira abertura (e as preferências padrão)
- *   - mostra as preferências lidas do banco, aplicadas num cartão de leitura
- *   - botões alteram as preferências (UPDATE) e criam documentos (INSERT)
- *   - FECHE e REABRA o app: os dados devem continuar lá (persistência)
+ * Saudação, "Nova Digitalização", atalhos (Importar Imagem / Biblioteca)
+ * e a lista "Continue Lendo" lida do banco.
  *
- * Quando terminar os testes, apague este conteúdo e monte a Home real.
+ * As navegações ainda não têm tela de destino: os TODO abaixo marcam
+ * onde ligar `router.push(...)` quando as rotas existirem.
  */
-import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { paraEstiloLeitura } from '@/database';
-import type { Espacamento, ItemBiblioteca, Preferencia, Usuario } from '@/database';
+import { ActionCard } from '@/components/action-card';
+import { CircleButton } from '@/components/circle-button';
+import { ContinueReadingCard } from '@/components/continue-reading-card';
+import { HeroButton } from '@/components/hero-button';
+import { Espaco, LumeColors } from '@/constants/lume';
+import { saudacao, useHome } from '@/hooks/use-home';
+import { router } from 'expo-router'; //router
+
+import { Pressable } from 'react-native';
 import { useRepositorios } from '@/database/DatabaseProvider';
 
-const ESQUEMAS = ['azul', 'roxo', 'laranja', 'verde'];
-const ESPACAMENTOS: Espacamento[] = ['normal', 'confortavel', 'amplo'];
+export default function Home() {
+  const { usuario, continuar, carregando, erro } = useHome();
 
-const TEXTO_EXEMPLO =
-  'Bem-vindo ao Lume. Este é um texto de exemplo para testar as preferências de ' +
-  'leitura salvas no banco de dados local. Mude a cor, o tamanho e o espaçamento.';
+  const { usuarios, categorias, documentos } = useRepositorios();
 
-export default function TesteBanco() {
-  const { usuarios, preferencias, documentos, categorias } = useRepositorios();
-
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [pref, setPref] = useState<Preferencia | null>(null);
-  const [biblioteca, setBiblioteca] = useState<ItemBiblioteca[]>([]);
-  const [erro, setErro] = useState<string | null>(null);
-
-  const carregar = useCallback(async () => {
-    try {
-      let u = await usuarios.obterPrimeiro();
-      if (!u) u = await usuarios.criar('João Emanuel');
-      setUsuario(u);
-      setPref(await preferencias.obter(u.id));
-      setBiblioteca(await documentos.listarBiblioteca(u.id));
-      setErro(null);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : String(e));
-    }
-  }, [usuarios, preferencias, documentos]);
-
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
-
-  async function executar(acao: () => Promise<void>) {
-    try {
-      await acao();
-      setErro(null);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  const proximaCor = () =>
-    executar(async () => {
-      if (!usuario || !pref) return;
-      const i = ESQUEMAS.indexOf(pref.esquemaCor);
-      const proxima = ESQUEMAS[(i + 1) % ESQUEMAS.length];
-      setPref(await preferencias.atualizar(usuario.id, { esquemaCor: proxima }));
-    });
-
-  const proximoEspacamento = () =>
-    executar(async () => {
-      if (!usuario || !pref) return;
-      const i = ESPACAMENTOS.indexOf(pref.espacamento);
-      const proximo = ESPACAMENTOS[(i + 1) % ESPACAMENTOS.length];
-      setPref(await preferencias.atualizar(usuario.id, { espacamento: proximo }));
-    });
-
-  const mudarTamanho = (delta: number) =>
-    executar(async () => {
-      if (!usuario || !pref) return;
-      const novo = Math.min(48, Math.max(12, pref.tamanhoFonte + delta));
-      setPref(await preferencias.atualizar(usuario.id, { tamanhoFonte: novo }));
-    });
-
-  const criarDocumento = () =>
-    executar(async () => {
-      if (!usuario) return;
-      const categoria = await categorias.obterOuCriar(usuario.id, 'Teste');
-      const doc = await documentos.criar({
-        usuarioId: usuario.id,
-        titulo: `Documento de teste ${biblioteca.length + 1}`,
-        origem: 'texto',
-        categoriaId: categoria.id,
-        textoOriginal: TEXTO_EXEMPLO,
-        textoAdaptado: TEXTO_EXEMPLO,
-      });
-      // simula que o usuário leu 40% do texto
-      await documentos.salvarProgresso(doc.id, Math.floor(TEXTO_EXEMPLO.length * 0.4));
-      await carregar();
-    });
-
-  const apagarDocumentos = () =>
-    executar(async () => {
-      for (const item of biblioteca) await documentos.remover(item.id);
-      await carregar();
-    });
-
-  const estilo = pref ? paraEstiloLeitura(pref) : null;
-
-  return (
-    <ScrollView contentContainerStyle={styles.tela}>
-      <Text style={styles.titulo}>Teste do banco Lume</Text>
-
-      {erro && <Text style={styles.erro}>Erro: {erro}</Text>}
-
-      {!usuario || !pref || !estilo ? (
-        <Text style={styles.texto}>Carregando...</Text>
-      ) : (
-        <>
-          <Text style={styles.texto}>Usuário: {usuario.nome} (id {usuario.id})</Text>
-          <Text style={styles.texto}>
-            Fonte: {pref.fonte} · Tamanho: {pref.tamanhoFonte} · Espaçamento: {pref.espacamento} ·
-            Cor: {pref.esquemaCor}
-          </Text>
-
-          <View style={[styles.cartao, estilo.cartao]}>
-            <Text style={estilo.texto}>{TEXTO_EXEMPLO}</Text>
-          </View>
-
-          <View style={styles.linha}>
-            <Botao rotulo="Trocar cor" onPress={proximaCor} />
-            <Botao rotulo="Espaçamento" onPress={proximoEspacamento} />
-          </View>
-          <View style={styles.linha}>
-            <Botao rotulo="Fonte -" onPress={() => mudarTamanho(-2)} />
-            <Botao rotulo="Fonte +" onPress={() => mudarTamanho(2)} />
-          </View>
-
-          <Text style={styles.subtitulo}>Biblioteca ({biblioteca.length})</Text>
-          {biblioteca.map((d) => (
-            <Text key={d.id} style={styles.texto}>
-              • {d.titulo} — {d.categoria ?? 'sem categoria'} — {d.progresso}% lido
-            </Text>
-          ))}
-
-          <View style={styles.linha}>
-            <Botao rotulo="Criar documento" onPress={criarDocumento} />
-            <Botao rotulo="Apagar todos" onPress={apagarDocumentos} />
-          </View>
-
-          <Text style={styles.dica}>
-            Feche o app por completo e abra de novo: usuário, preferências e documentos devem
-            continuar iguais.
-          </Text>
-        </>
-      )}
-    </ScrollView>
-  );
+async function criarTeste() {
+  const u = (await usuarios.obterPrimeiro())!;
+  const cat = await categorias.obterOuCriar(u.id, 'RPG', '#B7A1DB');
+  const texto =
+    'Bem-vindo ao Dragon Blazers.\n\n' +
+    'Este é um RPG inspirado em DELTARUNE.\n\n' +
+    'É um projeto extraoficial. Não tem relação com Toby Fox nem com sua equipe de desenvolvimento.\n\n' +
+    'O jogo recria o sistema de magia de DELTARUNE em formato de RPG de mesa.\n\n' +
+    'As regras foram feitas para serem simples.';
+  const doc = await documentos.criar({
+    usuarioId: u.id,
+    titulo: 'Dragon Blazers',
+    origem: 'texto',
+    categoriaId: cat.id,
+    corCapa: '#B7A1DB',
+    textoOriginal: texto,
+    textoAdaptado: texto,
+  });
+  await documentos.salvarProgresso(doc.id, 10); // faz aparecer em "Continue Lendo"
+  router.push({ pathname: '/leitor/[id]', params: { id: doc.id } });
 }
 
-function Botao({ rotulo, onPress }: { rotulo: string; onPress: () => void }) {
+  const primeiroNome = usuario?.nome.trim().split(/\s+/)[0] ?? '';
+
   return (
-    <Pressable style={styles.botao} onPress={onPress}>
-      <Text style={styles.botaoTexto}>{rotulo}</Text>
-    </Pressable>
+    <SafeAreaView style={styles.tela} edges={['top', 'left', 'right']}>
+      <ScrollView contentContainerStyle={styles.conteudo} showsVerticalScrollIndicator={false}>
+        <View style={styles.topo}>
+          <CircleButton icone="camera" rotulo="Abrir câmera" /* TODO: rota da câmera */ />
+          <View style={styles.topoDireita}>
+            <CircleButton icone="settings" rotulo="Configurações" /* TODO: rota de configurações */ />
+            <CircleButton icone="folder" rotulo="Pastas" /* TODO: rota de categorias */ />
+          </View>
+        </View>
+
+        <Text style={styles.saudacao}>
+          {saudacao()}, <Text style={styles.nome}>{primeiroNome}</Text>
+        </Text>
+
+        <HeroButton
+          titulo="Nova Digitalização"
+          subtitulo="Aponte a câmera para o seu texto."
+          /* TODO: rota de digitalização */
+        />
+
+        <View style={styles.linha}>
+          <ActionCard icone="import" titulo={'Importar\nImagem'} /* TODO: importar imagem */ />
+          <ActionCard icone="library" titulo="Biblioteca" onPress={() => router.push('/biblioteca')} />
+        </View>
+
+        <Text style={styles.secao}>Continue Lendo</Text>
+
+        <Pressable onPress={criarTeste} style={{ padding: 12, backgroundColor: '#ddd', borderRadius: 12 }}>
+  <Text>[TESTE] Criar texto e abrir leitor</Text>
+</Pressable>
+
+        {erro ? (
+          <Text style={styles.vazio}>Não foi possível carregar seus textos.</Text>
+        ) : carregando ? null : continuar.length === 0 ? (
+          <Text style={styles.vazio}>
+            Nada por aqui ainda. Digitalize ou importe um texto para começar.
+          </Text>
+        ) : (
+          continuar.map((item) => (
+           <ContinueReadingCard
+  key={item.id}
+  item={item}
+  onPress={(it) => router.push({ pathname: '/leitor/[id]', params: { id: it.id } })}
+/>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  tela: { padding: 20, paddingTop: 64, gap: 12, backgroundColor: '#fff', flexGrow: 1 },
-  titulo: { fontSize: 24, fontWeight: '700', color: '#111' },
-  subtitulo: { fontSize: 18, fontWeight: '600', marginTop: 8, color: '#111' },
-  texto: { fontSize: 15, color: '#222' },
-  erro: { color: '#b00020', fontSize: 14 },
-  dica: { fontSize: 13, color: '#666', marginTop: 8 },
-  cartao: { padding: 16, borderRadius: 20 },
-  linha: { flexDirection: 'row', gap: 10 },
-  botao: { flex: 1, backgroundColor: '#0077B6', padding: 12, borderRadius: 12 },
-  botaoTexto: { color: '#fff', textAlign: 'center', fontWeight: '600' },
+  tela: { flex: 1, backgroundColor: LumeColors.fundo },
+  conteudo: { padding: Espaco.lg, paddingBottom: Espaco.xl * 2, gap: Espaco.md },
+  topo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Espaco.sm },
+  topoDireita: { flexDirection: 'row', gap: Espaco.md },
+  saudacao: { fontSize: 15, color: LumeColors.texto },
+  nome: { color: LumeColors.primaria, fontWeight: '700' },
+  linha: { flexDirection: 'row', gap: Espaco.md },
+  secao: { fontSize: 16, color: LumeColors.texto, marginTop: Espaco.lg },
+  vazio: { fontSize: 14, color: '#555', paddingVertical: Espaco.md },
 });
