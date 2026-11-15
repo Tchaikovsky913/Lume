@@ -21,7 +21,7 @@ export default function Biblioteca() {
           <Icon name="back" size={28} color={LumeColors.texto} />
         </Pressable>
         <Text style={styles.titulo}>Biblioteca</Text>
-        <CircleButton icone="settings" rotulo="Configurações" />
+        <CircleButton icone="settings" rotulo="Configurações" onPress={() => router.push('/configuracoes')} />
         <CircleButton icone="search" rotulo="Buscar" onPress={() => setBuscando((b) => !b)} />
       </View>
 

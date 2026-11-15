@@ -33,7 +33,7 @@ export default function Leitor() {
           <Icon name="back" size={28} color={LumeColors.texto} />
         </Pressable>
         <Text style={styles.titulo} numberOfLines={1}>{documento.titulo}</Text>
-        <CircleButton icone="settings" rotulo="Configurações" />
+        <CircleButton icone="settings" rotulo="Configurações" onPress={() => router.push('/configuracoes')} />
       </View>
 
       <View style={[styles.cartao, estilo.cartao]}>
