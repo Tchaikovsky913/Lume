@@ -6,6 +6,7 @@
     "@expo-google-fonts/andika": "^0.4.1",
     "@expo-google-fonts/lexend": "^0.4.1",
     "@expo/ui": "~57.0.25",
+    "@react-native-community/slider": "5.2.0",
     "expo": "~57.0.30",
     "expo-constants": "~57.0.22",
     "expo-device": "~57.0.2",

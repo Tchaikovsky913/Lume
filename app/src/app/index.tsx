@@ -7,6 +7,7 @@
  * As navegações ainda não têm tela de destino: os TODO abaixo marcam
  * onde ligar `router.push(...)` quando as rotas existirem.
  */
+//repositorio
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,8 +58,8 @@ async function criarTeste() {
         <View style={styles.topo}>
           <CircleButton icone="camera" rotulo="Abrir câmera" /* TODO: rota da câmera */ />
           <View style={styles.topoDireita}>
-            <CircleButton icone="settings" rotulo="Configurações" /* TODO: rota de configurações */ />
-            <CircleButton icone="folder" rotulo="Pastas" /* TODO: rota de categorias */ />
+            <CircleButton icone="settings" rotulo="Configurações" onPress={() => router.push('/configuracoes')} />
+            <CircleButton icone="folder" rotulo="Pastas" onPress={() => router.push('/biblioteca')}/>
           </View>
         </View>
 
