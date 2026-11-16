@@ -4,15 +4,21 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CircleButton } from '@/components/circle-button';
+import { DocumentOptionsSheet } from '@/components/document-options-sheet';
 import { FilterChip } from '@/components/filter-chip';
 import { Icon } from '@/components/icons';
 import { LibraryItemCard } from '@/components/library-item-card';
 import { Espaco, LumeColors } from '@/constants/lume';
+import type { ItemBiblioteca } from '@/database';
 import { useBiblioteca } from '@/hooks/use-biblioteca';
 
 export default function Biblioteca() {
-  const { filtro, setFiltro, busca, setBusca, categorias, secoes } = useBiblioteca();
+  const {
+    filtro, setFiltro, busca, setBusca, categorias, secoes,
+    renomear, definirTag, excluir,
+  } = useBiblioteca();
   const [buscando, setBuscando] = useState(false);
+  const [selecionado, setSelecionado] = useState<ItemBiblioteca | null>(null); // documento com a folha de opções aberta
 
   return (
     <SafeAreaView style={styles.tela} edges={['top', 'left', 'right']}>
@@ -54,15 +60,26 @@ export default function Biblioteca() {
           <View key={s.titulo} style={{ gap: Espaco.md }}>
             <Text style={styles.secao}>{s.titulo}</Text>
             {s.itens.map((item) => (
-  <LibraryItemCard
-    key={item.id}
-    item={item}
-    onPress={() => router.push({ pathname: '/leitor/[id]', params: { id: item.id } })}
-  />
-))}
+              <LibraryItemCard
+                key={item.id}
+                item={item}
+                onPress={() => router.push({ pathname: '/leitor/[id]', params: { id: item.id } })}
+                onOpcoes={() => setSelecionado(item)}
+              />
+            ))}
           </View>
         ))}
       </ScrollView>
+
+      {/* Folha de opções: renomear, alterar tag (chip) ou excluir */}
+      <DocumentOptionsSheet
+        item={selecionado}
+        categorias={categorias}
+        onFechar={() => setSelecionado(null)}
+        onRenomear={renomear}
+        onDefinirTag={definirTag}
+        onExcluir={excluir}
+      />
     </SafeAreaView>
   );
 }

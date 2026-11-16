@@ -1,7 +1,9 @@
 import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type IconName = 'camera' | 'settings' | 'folder' | 'scan' | 'import' | 'library' | 'play';
+export type IconName =
+  | 'camera' | 'settings' | 'folder' | 'scan' | 'import' | 'library' | 'play'
+  | 'back' | 'search' | 'check' | 'marker' | 'zoom' | 'more';
 
 interface Props {
   name: IconName;
@@ -35,6 +37,14 @@ export function Icon({ name, size = 24, color = '#000', strokeWidth = 2 }: Props
       )}
       {name === 'back' && (
   <Path d="M15 18 L9 12 L15 6" {...stroke} />
+)}
+
+{name === 'more' && (
+  <>
+    <Circle cx={12} cy={5} r={1.8} fill={color} />
+    <Circle cx={12} cy={12} r={1.8} fill={color} />
+    <Circle cx={12} cy={19} r={1.8} fill={color} />
+  </>
 )}
 
 {name === 'search' && (
