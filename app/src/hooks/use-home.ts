@@ -4,8 +4,9 @@
  * Carrega o que a Home precisa do banco: usuário e "Continue Lendo".
  * Recarrega sempre que a tela volta ao foco (ex.: depois de ler).
  */
-import { useFocusEffect } from 'expo-router';
+
 import { useCallback, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
 
 import type { ItemContinueLendo, Usuario } from '@/database';
 import { useRepositorios } from '@/database/DatabaseProvider';
@@ -22,8 +23,11 @@ export function useHome() {
       let ativo = true;
       (async () => {
         try {
-          let u = await usuarios.obterPrimeiro();
-          if (!u) u = await usuarios.criar('Leitor'); // primeira abertura
+          const u = await usuarios.obterPrimeiro();
+if (!u) {
+  router.replace('/boas-vindas'); // primeira abertura: ainda não há usuário
+  return;
+}
           const lista = await documentos.listarContinueLendo(u.id);
           if (!ativo) return;
           setUsuario(u);
