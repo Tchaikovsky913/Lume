@@ -307,3 +307,8 @@ Ao abrir o app, o `database.ts` compara a versão gravada no aparelho com a list
 | **Cores dos esquemas** | Valores aproximados dos protótipos; ajustar com o Figma. |
 | **Teste de persistência** | Validado no celular: as preferências e documentos continuam depois de fechar e abrir o app. |
  S
+
+ ## Atualizações de Build
+ ### Comando para criar build
+ `npx eas-cli@latest build --platform android --profile preview`
+
