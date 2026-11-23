@@ -9,7 +9,12 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_OCR_URL": "https://lume-ocr.vercel.app/api/ocr",
+        "EXPO_PUBLIC_APP_TOKEN": "lumeapp2026"
+      }
     },
     "production": {
       "autoIncrement": true

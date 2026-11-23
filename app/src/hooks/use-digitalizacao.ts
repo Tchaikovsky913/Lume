@@ -4,9 +4,10 @@ import { useCallback, useState } from 'react';
 
 import { useRepositorios } from '@/database/DatabaseProvider';
 
-// Lidas do arquivo .env (só mudam ao reiniciar com: npx expo start -c)
-const OCR_URL = process.env.EXPO_PUBLIC_OCR_URL;
-const APP_TOKEN = process.env.EXPO_PUBLIC_APP_TOKEN;
+// Lidas do .env (Expo Go) ou do eas.json (APK). Se vierem vazias ou ausentes, usa a reserva.
+// O token de reserva precisa ser IGUAL ao APP_TOKEN do Vercel.
+const OCR_URL = process.env.EXPO_PUBLIC_OCR_URL || 'https://lume-ocr.vercel.app/api/ocr';
+const APP_TOKEN = process.env.EXPO_PUBLIC_APP_TOKEN || 'lumeapp2026';
 
 const MSG_SEM_CONFIG =
   'O servidor de leitura não está configurado. Confira o arquivo .env e reinicie o app.';
@@ -21,7 +22,7 @@ async function lerImagem(base64: string, mimeType: string) {
   if (!urlValida(OCR_URL)) throw new Error(MSG_SEM_CONFIG);
 
   const ctrl = new AbortController();
-  const limite = setTimeout(() => ctrl.abort(), 45_000); // desiste após 45 segundos
+  const limite = setTimeout(() => ctrl.abort(), 90_000); // desiste após 90 segundos
   try {
     let r: Response;
     try {
@@ -39,6 +40,9 @@ async function lerImagem(base64: string, mimeType: string) {
       throw new Error('Não foi possível conectar ao servidor. Verifique a internet.');
     }
     if (!r.ok) {
+      if (r.status === 429) {
+        throw new Error('Muitas leituras seguidas. Espere um minuto e tente de novo.');
+      }
       // Mostra o código HTTP para facilitar achar o problema (401 token, 404 caminho, 500 servidor...)
       let detalhe = '';
       try {
@@ -61,8 +65,8 @@ async function lerImagem(base64: string, mimeType: string) {
       textoAdaptado: String(d.textoAdaptado ?? '').trim() || original,
     };
   } catch (e) {
-    if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error('A leitura demorou demais. Tente de novo.');
+    if (ctrl.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
+      throw new Error('A leitura demorou demais. Verifique a internet e tente de novo.');
     }
     throw e;
   } finally {
