@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View,
+  Alert, Keyboard, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text,
+  TextInput, View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LumeColors, Raio } from '@/constants/lume';
 import type { Categoria, ItemBiblioteca } from '@/database';
@@ -24,12 +26,25 @@ export function DocumentOptionsSheet({
   const [titulo, setTitulo] = useState('');
   const [novaTag, setNovaTag] = useState('');
 
+  const insets = useSafeAreaInsets();
+  const [tecladoAberto, setTecladoAberto] = useState(false);
+
   // Sempre que abrir para outro documento, volta ao menu
   useEffect(() => {
     setModo('menu');
     setTitulo(item?.titulo ?? '');
     setNovaTag('');
   }, [item]);
+
+  // Só para saber se o teclado está aberto (o KeyboardAvoidingView cuida de subir a folha)
+  useEffect(() => {
+    const abre = Keyboard.addListener('keyboardDidShow', () => setTecladoAberto(true));
+    const fecha = Keyboard.addListener('keyboardDidHide', () => setTecladoAberto(false));
+    return () => {
+      abre.remove();
+      fecha.remove();
+    };
+  }, []);
 
   if (!item) return null;
 
@@ -43,13 +58,22 @@ export function DocumentOptionsSheet({
   }
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={onFechar}>
+    <Modal
+      transparent
+      animationType="fade"
+      visible
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onFechar}>
       <Pressable style={styles.fundo} onPress={onFechar} accessibilityLabel="Fechar opções" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.posicao}
-        pointerEvents="box-none">
-        <View style={styles.folha}>
+      {/* 'padding' nos DOIS sistemas: sobe a folha acima do teclado (antes só funcionava no iOS) */}
+      <KeyboardAvoidingView behavior="padding" style={styles.posicao} pointerEvents="box-none">
+        <View
+          style={[
+            styles.folha,
+            // sem teclado: respeita a barra de navegação do Android; com teclado: ele já ocupa esse espaço
+            { paddingBottom: 20 + (tecladoAberto ? 0 : insets.bottom) },
+          ]}>
           <Text style={styles.titulo} numberOfLines={1}>{item.titulo}</Text>
 
           {modo === 'menu' && (
@@ -68,6 +92,12 @@ export function DocumentOptionsSheet({
                 autoFocus
                 maxLength={80}
                 style={styles.input}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (titulo.trim() && titulo.trim() !== item.titulo) {
+                    executar(() => onRenomear(item.id, titulo));
+                  }
+                }}
                 accessibilityLabel="Novo nome do documento"
               />
               <Botoes
@@ -81,26 +111,36 @@ export function DocumentOptionsSheet({
 
           {modo === 'tag' && (
             <>
-              <Opcao
-                rotulo="Sem tag"
-                marcado={item.categoriaId === null}
-                onPress={() => executar(() => onDefinirTag(item, null))}
-              />
-              {categorias.map((c) => (
+              <ScrollView
+                style={styles.listaTags}
+                contentContainerStyle={{ gap: 10 }}
+                keyboardShouldPersistTaps="handled">
                 <Opcao
-                  key={c.id}
-                  rotulo={c.nome}
-                  cor={c.cor}
-                  marcado={item.categoriaId === c.id}
-                  onPress={() => executar(() => onDefinirTag(item, c.nome))}
+                  rotulo="Sem tag"
+                  marcado={item.categoriaId === null}
+                  onPress={() => executar(() => onDefinirTag(item, null))}
                 />
-              ))}
+                {categorias.map((c) => (
+                  <Opcao
+                    key={c.id}
+                    rotulo={c.nome}
+                    cor={c.cor}
+                    marcado={item.categoriaId === c.id}
+                    onPress={() => executar(() => onDefinirTag(item, c.nome))}
+                  />
+                ))}
+              </ScrollView>
               <TextInput
                 value={novaTag}
                 onChangeText={setNovaTag}
                 placeholder="Ou crie uma nova tag"
+                placeholderTextColor="#6B6B6B"
                 maxLength={30}
                 style={styles.input}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (novaTag.trim()) executar(() => onDefinirTag(item, novaTag));
+                }}
                 accessibilityLabel="Nome da nova tag"
               />
               <Botoes
@@ -177,9 +217,11 @@ const styles = StyleSheet.create({
   opcaoTexto: { flex: 1, fontSize: 16, color: LumeColors.texto },
   marca: { color: LumeColors.primaria, fontWeight: '700', fontSize: 18 },
   bolinha: { width: 12, height: 12, borderRadius: 6 },
+  listaTags: { maxHeight: 230, flexGrow: 0 },
   input: {
     backgroundColor: '#fff', borderRadius: 14, borderWidth: 1,
     borderColor: LumeColors.cartaoClaroBorda, padding: 12, fontSize: 16,
+    color: LumeColors.texto,
   },
   aviso: { fontSize: 15, color: LumeColors.texto, lineHeight: 22 },
   botoes: { flexDirection: 'row', gap: 10, marginTop: 4 },
