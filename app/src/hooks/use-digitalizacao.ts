@@ -4,21 +4,55 @@ import { useCallback, useState } from 'react';
 
 import { useRepositorios } from '@/database/DatabaseProvider';
 
+// Lidas do arquivo .env (só mudam ao reiniciar com: npx expo start -c)
+const OCR_URL = process.env.EXPO_PUBLIC_OCR_URL;
+const APP_TOKEN = process.env.EXPO_PUBLIC_APP_TOKEN;
+
+const MSG_SEM_CONFIG =
+  'O servidor de leitura não está configurado. Confira o arquivo .env e reinicie o app.';
+
+/** A URL existe e é http(s)? (evita "no protocol: undefined") */
+function urlValida(url: string | undefined): url is string {
+  return !!url && /^https?:\/\//i.test(url.trim());
+}
+
 // Envia a imagem ao servidor e devolve os dois textos
 async function lerImagem(base64: string, mimeType: string) {
+  if (!urlValida(OCR_URL)) throw new Error(MSG_SEM_CONFIG);
+
   const ctrl = new AbortController();
   const limite = setTimeout(() => ctrl.abort(), 45_000); // desiste após 45 segundos
   try {
-    const r = await fetch(process.env.EXPO_PUBLIC_OCR_URL!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-app-token': process.env.EXPO_PUBLIC_APP_TOKEN!,
-      },
-      body: JSON.stringify({ imagemBase64: base64, mimeType }),
-      signal: ctrl.signal,
-    });
-    if (!r.ok) throw new Error('Não foi possível ler a imagem. Tente de novo.');
+    let r: Response;
+    try {
+      r = await fetch(OCR_URL.trim(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(APP_TOKEN ? { 'x-app-token': APP_TOKEN } : {}),
+        },
+        body: JSON.stringify({ imagemBase64: base64, mimeType }),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') throw e; // tratado abaixo
+      throw new Error('Não foi possível conectar ao servidor. Verifique a internet.');
+    }
+    if (!r.ok) {
+      // Mostra o código HTTP para facilitar achar o problema (401 token, 404 caminho, 500 servidor...)
+      let detalhe = '';
+      try {
+        const corpo = await r.text();
+        console.warn('OCR respondeu', r.status, corpo.slice(0, 500));
+        const j = JSON.parse(corpo);
+        detalhe = String(j.erro ?? j.error ?? j.message ?? '').slice(0, 120);
+      } catch {
+        /* resposta não era JSON: ignora */
+      }
+      throw new Error(
+        `Não foi possível ler a imagem (erro ${r.status}${detalhe ? `: ${detalhe}` : ''}). Tente de novo.`,
+      );
+    }
     const d = await r.json();
     const original = String(d.textoOriginal ?? '').trim();
     if (!original) throw new Error('Não encontramos texto nessa imagem.');
@@ -45,6 +79,12 @@ export function useDigitalizacao() {
     async (origem: 'camera' | 'imagem') => {
       if (processando) return; // evita toques repetidos
       setErro(null);
+
+      // 0) Servidor configurado? Se não, avisa já (antes de abrir a câmera)
+      if (!urlValida(OCR_URL)) {
+        setErro(MSG_SEM_CONFIG);
+        return;
+      }
 
       // 1) Escolher a imagem
       let resultado: ImagePicker.ImagePickerResult;
@@ -92,7 +132,7 @@ export function useDigitalizacao() {
         router.push({ pathname: '/leitor/[id]', params: { id: doc.id } });
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Erro desconhecido.';
-        await documentos.marcarErro(doc.id, msg);
+        await documentos.remover(doc.id); // falhou: não deixa documento "fantasma" no banco
         setErro(msg);
       } finally {
         setProcessando(false);
