@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4a252aee-eebb-4866-9fcd-b217712a0fbb"
+      }
+    },
+    "android": {
+      "package": "com.joaoeemanuel.lume"
+    }
+  }
+}
