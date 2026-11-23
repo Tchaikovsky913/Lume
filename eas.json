@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 27.11.0",
+    "version": ">= 27.10.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -9,7 +9,12 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_OCR_URL": "https://lume-ocr.vercel.app/api/ocr",
+        "EXPO_PUBLIC_APP_TOKEN": "lumeapp2026"
+      }
     },
     "production": {
       "autoIncrement": true
